@@ -3,10 +3,10 @@
 ##################################
 
 # Import package -----
-
+suppressPackageStartupMessages(library("synapser"))
 
 # Use synapser and log in -----
-synapser$login()
+synLogin()
 
 # Variables -----
 # Top directories
@@ -125,10 +125,11 @@ gather_ids <- function(all_files) {
     if (!inherits(study_metadata, "data.frame")) {
       return(as.character(NA))
     }
-    study_metadata[, "study"] <- unique(meta_files$study)
+    study_metadata[, "study"] <- unique(study)
+    study_metadata <- add_missing_meta_columns(study_metadata)
     return(study_metadata)
   })
-  Reduce(rbind, all_metadata)
+  Reduce(rbind, all_metadata[!is.na(all_metadata)])
 }
 
 gather_ids_helper <- function(meta_files) {
@@ -155,30 +156,29 @@ gather_ids_helper <- function(meta_files) {
 }
 
 get_all_study_data <- function(meta_files) {
-  study_data <- purrr::map2(meta_files$id, meta_files$assay, function(id, assay) {
-    if (is.na(id)) {
-      return(as.character(NA))
-    }
-    metadata <- get_file_data(id)
-    if (!inherits(metadata, "data.frame")) {
-      return(as.character(NA))
-    }
-    metadata <- metadata[, colnames(metadata) %in% RELEVANT_METADATA_COLUMNS]
-    if (length(metadata) == 0) {
-      return(as.character(NA))
-    }
-    # If not empty and an assay, make sure has assay column with type
-    if (!is.na(assay) & !"assay" %in% colnames(metadata)) {
-      metadata[, "assay"] <- assay
-    }
-    # Make sure all columns are type `character`
-    for (column in colnames(metadata)) {
-      if (!inherits(metadata[, column], "character")) {
-        metadata[, column] <- as.character(metadata[, column])
+  study_data <- purrr::map2(
+    meta_files$id,
+    meta_files$assay,
+    function(id, assay) {
+      if (is.na(id)) {
+        return(as.character(NA))
       }
+      metadata <- get_file_data(id)
+      if (!inherits(metadata, "data.frame")) {
+        return(as.character(NA))
+      }
+      metadata <- metadata[, colnames(metadata) %in% RELEVANT_METADATA_COLUMNS]
+      if (length(metadata) == 0) {
+        return(as.character(NA))
+      }
+      # If not empty and an assay, make sure has assay column with type
+      if (!is.na(assay) & !"assay" %in% colnames(metadata)) {
+        # assay should be character string, but could be NA
+        metadata[, "assay"] <- assay
+      }
+      return(metadata)
     }
-    return(metadata)
-  })
+  )
   meta_files[, "data"] <- list(study_data)
   return(meta_files)
 }
@@ -197,6 +197,19 @@ add_missing_meta_rows <- function(meta_files) {
     meta_files <- add_empty_row(meta_files, type = "assay")
   }
   return(meta_files)
+}
+
+add_missing_meta_columns <- function(metadata) {
+  if (all(RELEVANT_METADATA_COLUMNS %in% colnames(metadata))) {
+    return(metadata)
+  }
+  missing_colnames <- RELEVANT_METADATA_COLUMNS[
+    !(RELEVANT_METADATA_COLUMNS %in% colnames(metadata))
+  ]
+  for (col_name in missing_colnames) {
+    metadata[, col_name] <- as.character(NA)
+  }
+  return(metadata)
 }
 
 get_file_indices <- function(meta_files, meta_types = METADATA_TYPES) {
@@ -228,13 +241,50 @@ get_file_data <- function(syn_id) {
       readr::read_csv(
         synapser::synGet(syn_id)$path,
         na = character(),
-        col_types = readr::cols()
+        col_types = readr::cols(.default = "c")
       )
     },
     error = function(e) {
       return(as.character(NA))
     }
   )
+}
+
+#' @title Update sample ID table
+#'
+#' @description **Warning** This is a destructive function!
+#' Update the sample ID table with new data. This function will delete the rows
+#' in the old data and upload the new data in its place. The existing table
+#' schema must match the columns in `new_data`.
+#'
+#' @param table_id synID of the table to overwrite.
+#' @param new_data the new data to overwrite the table with.
+update_samples_table <- function(table_id, new_data) {
+  if (!inherits(new_data, "data.frame")) {
+    stop("No new_data was provided.")
+  }
+  # Write new data to a file and create Table object
+  temp_path <- tempfile(fileext = ".csv")
+  write.csv(new_data, temp_path, row.names = FALSE)
+  new_table <- tryCatch(
+    {
+      synapser::Table(table_id, new_data)
+    },
+    error = function(e) {
+      stop(
+        glue::glue("There's a problem with making the table:\n  {e$message}")
+      )
+    }
+  )
+
+  # Grab table rows; delete them
+  samples <- synapser::synTableQuery(
+    glue::glue("SELECT * FROM {table_id}")
+  )
+  synapser::synDelete(samples)
+
+  # Store new table
+  synapser::synStore(new_table)
 }
 
 # End functions ----------------------------------------------------------------
@@ -268,3 +318,30 @@ all_files <- all_files[!grepl("dictionary|protocol", all_files$metadataType), ]
 # Open files and gather IDs
 all_meta_ids <- gather_ids(all_files)
 
+# Grab all file annotations
+all_annots <- synapser::synTableQuery(
+  glue::glue("SELECT study, individualID, specimenID, assay FROM {file_view}")
+)
+all_annots <- all_annots$asDataFrame()
+# Keeps row info; remove this
+all_annots <- all_annots[, c("study", "individualID", "specimenID", "assay")]
+
+# Remove json from annotated study names
+all_annots[, "study"] <- unlist(purrr::map(all_annots$study, function(name) {
+  gsub("\\[|\"|\\]| ", "", name)
+}))
+# Separate into multiple rows for IDs that have multiple study annotations
+all_annots <- tidyr::separate_rows(all_annots, study, sep = ",")
+
+# Bind together with metadata to get full set
+all_ids <- rbind(all_meta_ids, all_annots)
+
+# Clean up NAs and duplicates
+all_ids <- dplyr::distinct(all_ids)
+# Don't need rows where BOTH the individualID and specimenID are NA
+all_ids <- all_ids[!(is.na(all_ids$specimenID) & is.na(all_ids$individualID)), ]
+
+# Grab samples table, delete old data, add new data
+#! COMMENTED OUT BECAUSE THIS IS DESTRUCTIVE -- MAKE SURE THE SCRIPT
+#! IS CORRECT BEFORE DEPLOYING
+# update_samples_table(table_id = id_table, new_data = all_ids)
