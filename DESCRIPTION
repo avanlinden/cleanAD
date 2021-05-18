@@ -1,5 +1,5 @@
 Package: cleanAD
-Title: What the Package Does (One Line, Title Case)
+Title: Curator Tools for Cleaning AD Knowledge Portal Data
 Version: 0.0.0.9000
 Authors@R: 
     person(given = "Nicole",
@@ -13,13 +13,17 @@ Depends:
     R (>= 3.4)
 Imports:
     dplyr,
+    glue,
     purrr,
     readr,
     readxl,
-    reticulate
+    reticulate,
+    synapser,
+    tidyr
 Suggests:
     testthat
-SystemRequirements: synapseclient (pypi.org/project/synapseclient)
+Remotes:
+    URL::github.com/Sage-Bionetworks/synapser/archive/refs/tags/0.10.89.zip
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
