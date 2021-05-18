@@ -20,284 +20,14 @@ file_view <- "syn11346063"
 RELEVANT_METADATA_COLUMNS <- c("individualID", "specimenID", "assay")
 METADATA_TYPES <- c("biospecimen", "assay", "individual")
 
-# Functions --------------------------------------------------------------------
-
-## Finding metadata files -----
-
-#' @title Gather metadata synIDs
-#'
-#' @description Gather synIDs for metadata files
-#'
-#' @param dir_id synID for top level directory.
-#' @return table with file synID, filename, and study name.
-gather_metadata_synIDs <- function(dir_id) {
-  children <- synapser::synGetChildren(dir_id)$asList()
-  study_metadata <- purrr::map(children, function(study_folder) {
-    gather_metadata_synIDs_helper(
-      dir_id = study_folder$id,
-      study = study_folder$name
-    )
-  })
-  study_metadata <- Reduce(rbind, study_metadata)
-  study_metadata <- na.omit(study_metadata)
-  return(study_metadata)
-}
-
-#' @title Gather metadata synIDs helper
-#'
-#' @description Gather synIDs for metadata files
-#'
-#' @param dir_id synID for directory.
-#' @param study name of study.
-gather_metadata_synIDs_helper <- function(dir_id, study) {
-  children <- synapser::synGetChildren(dir_id)$asList()
-  has_metadata <- does_child_exist(children, c("Metadata", "metadata"))
-  if (any(has_metadata)) {
-    metadata <- gather_metadata_synIDs_files(
-      dir_id = purrr::flatten(children[has_metadata])$id,
-      study = study
-    )
-    return(metadata)
-  }
-  has_data <- does_child_exist(children, c("Data", "data"))
-  if (any(has_data)) {
-    metadata <- gather_metadata_synIDs_helper(
-      dir_id = purrr::flatten(children[has_data])$id,
-      study = study
-    )
-    return(metadata)
-  } else {
-    return(NA)
-  }
-}
-
-#' @title See if child folder exists
-#'
-#' @description See if child folder exists
-#'
-#' @param children list of children.
-#' @param dir_name vector of names to search for.
-#' @return boolean vector indicating whether the child matches one
-#' of the dir_name(s) in same order as children.
-does_child_exist <- function(children, dir_name) {
-  purrr::map_lgl(children, function(child) {
-    child$name %in% dir_name
-  })
-}
-
-#' @title Gather metadata file synIDs
-#'
-#' @description Gather the file synIDs
-#'
-#' @param dir_id synID for metadata directory.
-#' @param study name of study.
-gather_metadata_synIDs_files <- function(dir_id, study) {
-  children <- synapser::synGetChildren(dir_id)$asList()
-  if (length(children) > 0) {
-    df <- as.data.frame(Reduce(rbind, children))
-    df <- dplyr::select(df, name, id)
-    df["study"] <- study
-    # Remove weird rownames
-    rownames(df) <- c()
-    return(df)
-  }
-  return(NA)
-}
-
-# Pull specimen and individual IDs from files
-
-#' @title Gather IDs from metadata files
-#'
-#' @description Assumes all metadata files are csv with some combination of
-#' columns: `individualID`, `specimenID`, `assay`. Gathers by study grouping.
-#'
-#' @param all_files dataframe with columns `id` (synID of file), `study` (name
-#' of related study), `metadataType` (`assay`, `individual`, or `biospecimen`),
-#' `assay` (type of assay), `dataType` (type of data).
-gather_ids <- function(all_files) {
-  all_studies <- unique(all_files$study)
-  all_metadata <- purrr::map(all_studies, function(study) {
-    study_metadata <- add_missing_meta_rows(
-      all_files[all_files$study %in% study, ]
-    )
-    study_metadata <- get_all_study_data(study_metadata)
-    study_metadata <- gather_ids_helper(study_metadata)
-    if (!inherits(study_metadata, "data.frame")) {
-      return(as.character(NA))
-    }
-    study_metadata[, "study"] <- unique(study)
-    study_metadata <- add_missing_meta_columns(study_metadata)
-    return(study_metadata)
-  })
-  Reduce(rbind, all_metadata[!is.na(all_metadata)])
-}
-
-gather_ids_helper <- function(meta_files) {
-  # Should have none that are integer(0), but data will be NA
-  file_indices <- get_file_indices(meta_files)
-  # Join in order of assay, biospecimen, individual
-  # Reorder
-  ordering <- c(
-    file_indices$assay,
-    file_indices$biospecimen,
-    file_indices$individual
-  )
-  meta_files <- meta_files[ordering, ]
-  # Remove any rows that have `NA` for data
-  meta_files <- meta_files[!is.na(meta_files$data), ]
-  if (nrow(meta_files) == 0) {
-    return(as.character(NA))
-  }
-  metadata <- Reduce(
-    dplyr::full_join,
-    meta_files$data
-  )
-  return(metadata)
-}
-
-get_all_study_data <- function(meta_files) {
-  study_data <- purrr::map2(
-    meta_files$id,
-    meta_files$assay,
-    function(id, assay) {
-      if (is.na(id)) {
-        return(as.character(NA))
-      }
-      metadata <- get_file_data(id)
-      if (!inherits(metadata, "data.frame")) {
-        return(as.character(NA))
-      }
-      metadata <- metadata[, colnames(metadata) %in% RELEVANT_METADATA_COLUMNS]
-      if (length(metadata) == 0) {
-        return(as.character(NA))
-      }
-      # If not empty and an assay, make sure has assay column with type
-      if (!is.na(assay) & !"assay" %in% colnames(metadata)) {
-        # assay should be character string, but could be NA
-        metadata[, "assay"] <- assay
-      }
-      return(metadata)
-    }
-  )
-  meta_files[, "data"] <- list(study_data)
-  return(meta_files)
-}
-
-add_missing_meta_rows <- function(meta_files) {
-  file_indices <- get_file_indices(meta_files)
-  # If any type is `integer(0)`, then add NA row to meta_files
-  # Makes it easier to join in correct order later
-  if (length(file_indices$individual) == 0) {
-    meta_files <- add_empty_row(meta_files, type = "individual")
-  }
-  if (length(file_indices$biospecimen) == 0) {
-    meta_files <- add_empty_row(meta_files, type = "biospecimen")
-  }
-  if (length(file_indices$assay) == 0) {
-    meta_files <- add_empty_row(meta_files, type = "assay")
-  }
-  return(meta_files)
-}
-
-add_missing_meta_columns <- function(metadata) {
-  if (all(RELEVANT_METADATA_COLUMNS %in% colnames(metadata))) {
-    return(metadata)
-  }
-  missing_colnames <- RELEVANT_METADATA_COLUMNS[
-    !(RELEVANT_METADATA_COLUMNS %in% colnames(metadata))
-  ]
-  for (col_name in missing_colnames) {
-    metadata[, col_name] <- as.character(NA)
-  }
-  return(metadata)
-}
-
-get_file_indices <- function(meta_files, meta_types = METADATA_TYPES) {
-  file_indices <- purrr::map(
-    meta_types,
-    function(meta_type) {
-      which(meta_files$metadataType %in% meta_type)
-    }
-  )
-  names(file_indices) <- meta_types
-  return(file_indices)
-}
-
-add_empty_row <- function(meta_files, type) {
-  df_row <- data.frame(id = NA, metadataType = type, study = unique(meta_files$study))
-  for (name in setdiff(colnames(meta_files), c("id", "metadataType", "study"))) {
-    df_row[, name] <- as.character(NA)
-  }
-  # Reorder columns
-  df_row <- df_row[, colnames(meta_files)]
-  rbind(meta_files, df_row)
-}
-
-get_file_data <- function(syn_id) {
-  # Be explicit in col_types to stop the messages about parsing
-  # Also stop it from making NA into strings
-  tryCatch(
-    {
-      readr::read_csv(
-        synapser::synGet(syn_id)$path,
-        na = character(),
-        col_types = readr::cols(.default = "c")
-      )
-    },
-    error = function(e) {
-      return(as.character(NA))
-    }
-  )
-}
-
-#' @title Update sample ID table
-#'
-#' @description **Warning** This is a destructive function!
-#' Update the sample ID table with new data. This function will delete the rows
-#' in the old data and upload the new data in its place. The existing table
-#' schema must match the columns in `new_data`.
-#'
-#' @param table_id synID of the table to overwrite.
-#' @param new_data the new data to overwrite the table with.
-update_samples_table <- function(table_id, new_data) {
-  if (!inherits(new_data, "data.frame")) {
-    stop("No new_data was provided.")
-  }
-  # Write new data to a file and create Table object
-  temp_path <- tempfile(fileext = ".csv")
-  write.csv(new_data, temp_path, row.names = FALSE)
-  new_table <- tryCatch(
-    {
-      synapser::Table(table_id, new_data)
-    },
-    error = function(e) {
-      stop(
-        glue::glue("There's a problem with making the table:\n  {e$message}")
-      )
-    }
-  )
-
-  # Grab table rows; delete them
-  samples <- synapser::synTableQuery(
-    glue::glue("SELECT * FROM {table_id}")
-  )
-  synapser::synDelete(samples)
-
-  # Store new table
-  synapser::synStore(new_table)
-}
-
-# End functions ----------------------------------------------------------------
-
 # Get study metadata file IDs -----
-files_human <- gather_metadata_synIDs(id_human)
-files_model <- gather_metadata_synIDs(id_model)
-all_files <- rbind(files_human, files_model)
+dir_ids <- c(id_human, id_model)
+all_files <- purrr::map_dfr(dir_ids, ~ gather_metadata_synIDs_all(.))
 
 # Remove files that are probably not metadata -----
 # Only keep csv files that don't have 'dictionary' in name
 all_files <- all_files[grepl(".csv$", all_files$name, ignore.case = TRUE), ]
-all_files <- all_files[!grepl("dictionary", all_files$name, ignore.case = TRUE), ]
+all_files <- all_files[!grepl("dictionary", all_files$name, ignore.case = TRUE), ] # nolint
 # Fix id column to be character
 all_files$id <- as.character(all_files$id)
 
@@ -316,20 +46,16 @@ all_files <- dplyr::left_join(
 all_files <- all_files[!grepl("dictionary|protocol", all_files$metadataType), ]
 
 # Open files and gather IDs
-all_meta_ids <- gather_ids(all_files)
+all_meta_ids <- gather_ids_all_studies(all_files)
 
 # Grab all file annotations
-all_annots <- synapser::synTableQuery(
-  glue::glue("SELECT study, individualID, specimenID, assay FROM {file_view}")
-)
-all_annots <- all_annots$asDataFrame()
-# Keeps row info; remove this
-all_annots <- all_annots[, c("study", "individualID", "specimenID", "assay")]
+all_annots <- simple_table_query(table_id = file_view)
 
 # Remove json from annotated study names
-all_annots[, "study"] <- unlist(purrr::map(all_annots$study, function(name) {
-  gsub("\\[|\"|\\]| ", "", name)
-}))
+all_annots[, "study"] <- unlist(purrr::map(
+  all_annots$study,
+  ~ clean_json_string(., remove_spaces = TRUE)
+))
 # Separate into multiple rows for IDs that have multiple study annotations
 all_annots <- tidyr::separate_rows(all_annots, study, sep = ",")
 
