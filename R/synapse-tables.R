@@ -35,7 +35,9 @@ update_samples_table <- function(table_id, new_data) {
   # Store new table
   synapser::synStore(new_table)
   # Query table to force update
-  synapser::synTableQuery(glue::glue("SELECT * FROM {table_id} LIMIT 1"))
+  # Shouldn't be needed since it should only be views that async update, but
+  # do it just in case...
+  synapser::synTableQuery(glue::glue("SELECT * FROM {table_id}"))
 }
 
 #' @title Get Simple Table Query
@@ -50,7 +52,7 @@ update_samples_table <- function(table_id, new_data) {
 #' @export
 simple_table_query <- function(table_id,
                                columns = c("study", "individualID", "specimenID", "assay")) { # nolint
-  column_string <- glue::glue_collapse(columns, ", ")
+  column_string <- glue::glue_collapse(columns, ", ") # nolint
   all_annots <- synapser::synTableQuery(
     glue::glue("SELECT {column_string} FROM {file_view}")
   )$asDataFrame()

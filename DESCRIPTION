@@ -21,7 +21,10 @@ Imports:
     synapser,
     tidyr
 Suggests:
-    testthat
+    docopt,
+    log4r,
+    mockery,
+    testthat (>= 3.0.0)
 Remotes:
     URL::github.com/Sage-Bionetworks/synapser/archive/refs/tags/0.10.89.zip
 Encoding: UTF-8

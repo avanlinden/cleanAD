@@ -12,57 +12,26 @@
 gather_ids_all_studies <- function(all_files) {
   all_studies <- unique(all_files$study)
   all_metadata <- purrr::map(all_studies, function(study) {
-    study_metadata <- add_missing_meta_rows(
-      all_files[all_files$study %in% study, ]
-    )
+    study_metadata <- all_files[all_files$study %in% study, ]
     study_metadata <- get_all_study_metadata(study_metadata)
-    study_metadata <- gather_ids_by_study(study_metadata)
+    # Remove rows where data is missing
+    study_metadata <- study_metadata[!is.na(study_metadata$data), ]
+    study_metadata <- join_full_study_metadata(study_metadata)
     if (!inherits(study_metadata, "data.frame")) {
       return(as.character(NA))
     }
     study_metadata[, "study"] <- unique(study)
-    study_metadata <- add_missing_meta_columns(study_metadata)
     return(study_metadata)
   })
   Reduce(rbind, all_metadata[!is.na(all_metadata)])
 }
 
-#' @title Gather study metadata IDs
-#'
-#' @description Gather metadata IDs for a single study.
-#'
-#' @param meta_files Dataframe with columns `metadataType` (`assay`,
-#' `individual`, or `biospecimen`), `assay` (type of assay), and `data` (nested
-#' dataframe with the metadata from the file).
-#' @export
-gather_ids_by_study <- function(meta_files) {
-  # Should have none that are integer(0), but data will be NA
-  file_indices <- get_file_indices(meta_files)
-  # Join in order of assay, biospecimen, individual
-  # Reorder
-  ordering <- c(
-    file_indices$assay,
-    file_indices$biospecimen,
-    file_indices$individual
-  )
-  meta_files <- meta_files[ordering, ]
-  # Remove any rows that have `NA` for data
-  meta_files <- meta_files[!is.na(meta_files$data), ]
-  if (nrow(meta_files) == 0) {
-    return(as.character(NA))
-  }
-  metadata <- Reduce(
-    dplyr::full_join,
-    meta_files$data
-  )
-  return(metadata)
-}
-
-#' @title Get All Study Data
+#' @title Get Metadata from Files
 #'
 #' @description Add a nested dataframe column that contains only the desired
 #' data from each metadata file.
 #'
+#' @noRd
 #' @param meta_files dataframe with columns `id` (synID of file), `study` (name
 #' of related study), `metadataType` (`assay`, `individual`, or `biospecimen`),
 #' `assay` (type of assay), `dataType` (type of data).
@@ -86,11 +55,6 @@ get_all_study_metadata <- function(meta_files,
       metadata <- metadata[, colnames(metadata) %in% columns]
       if (length(metadata) == 0) {
         return(as.character(NA))
-      }
-      # If not empty and an assay, make sure has assay column with type
-      if (!is.na(assay) & !"assay" %in% colnames(metadata)) {
-        # assay should be character string, but could be NA
-        metadata[, "assay"] <- assay
       }
       return(metadata)
     }
@@ -164,13 +128,20 @@ add_empty_row <- function(meta_files, type) {
 #' `expected_columns`.
 #' @noRd
 add_missing_meta_columns <- function(metadata,
-                                     expected_columns = c("individualID", "specimenID", "assay")) { # nolint
+                                     expected_columns = c(
+                                       "individualID",
+                                       "specimenID",
+                                       "assay"
+                                     )) {
+  if (!inherits(metadata, "data.frame")) {
+    return(NA)
+  }
   if (all(expected_columns %in% colnames(metadata))) {
     return(metadata)
   }
   missing_colnames <- expected_columns[
     !(expected_columns %in% colnames(metadata))
-    ]
+  ]
   for (col_name in missing_colnames) {
     metadata[, col_name] <- as.character(NA)
   }
@@ -186,11 +157,19 @@ add_missing_meta_columns <- function(metadata,
 #' `c("biospecimen", "assay", "individual")`.
 #' @export
 get_file_indices <- function(meta_files,
-                             meta_types = c("biospecimen", "assay", "individual")) { # nolint
+                             meta_types = c(
+                               "biospecimen",
+                               "assay",
+                               "individual"
+                             )) { # nolint
   file_indices <- purrr::map(
     meta_types,
     function(meta_type) {
-      which(meta_files$metadataType %in% meta_type)
+      inds <- which(meta_files$metadataType %in% meta_type)
+      if (length(inds) < 1) {
+        return(NA)
+      }
+      return(inds)
     }
   )
   names(file_indices) <- meta_types

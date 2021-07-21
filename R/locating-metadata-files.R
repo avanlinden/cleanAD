@@ -7,9 +7,9 @@
 #' @return Dataframe with file synID, filename, and study name.
 #' @export
 gather_metadata_synIDs_all <- function(dir_id) {
-  children <- synapser::synGetChildren(dir_id)$asList()
+  children <- wrapper_synGetChildren(dir_id)
   study_metadata <- purrr::map(children, function(study_folder) {
-    gather_metadata_synIDs_by_study(
+    gather_study_metadata_synIDs(
       dir_id = study_folder$id,
       study = study_folder$name
     )
@@ -29,8 +29,8 @@ gather_metadata_synIDs_all <- function(dir_id) {
 #' @param dir_id Synapse synID for study directory.
 #' @param study Name of study.
 #' @export
-gather_metadata_synIDs_by_study <- function(dir_id, study) {
-  children <- synapser::synGetChildren(dir_id)$asList()
+gather_study_metadata_synIDs <- function(dir_id, study) {
+  children <- wrapper_synGetChildren(dir_id)
   has_metadata <- does_child_exist(children, c("Metadata", "metadata"))
   if (any(has_metadata)) {
     metadata <- gather_metadata_synIDs_files(
@@ -41,7 +41,7 @@ gather_metadata_synIDs_by_study <- function(dir_id, study) {
   }
   has_data <- does_child_exist(children, c("Data", "data"))
   if (any(has_data)) {
-    metadata <- gather_metadata_synIDs_helper(
+    metadata <- gather_study_metadata_synIDs(
       dir_id = purrr::flatten(children[has_data])$id,
       study = study
     )
@@ -59,10 +59,10 @@ gather_metadata_synIDs_by_study <- function(dir_id, study) {
 #' @param study Name of study.
 #' @noRd
 gather_metadata_synIDs_files <- function(dir_id, study) {
-  children <- synapser::synGetChildren(dir_id)$asList()
-  if (length(children) > 0) {
-    df <- as.data.frame(Reduce(rbind, children))
-    df <- dplyr::select(df, name, id)
+  children <- wrapper_synGetChildren(dir_id)
+  if (!all(is.na(children))) {
+    df <- dplyr::bind_rows(children)
+    df <- df[, c("name", "id")]
     df["study"] <- study
     # Remove weird rownames
     rownames(df) <- c()
@@ -81,8 +81,45 @@ gather_metadata_synIDs_files <- function(dir_id, study) {
 #' @return Boolean vector indicating whether the child matches one
 #' of the dir_name(s) in same order as children.
 #' @noRd
+#' @examples
+#' dat <- list(
+#'   list(
+#'     name = "wrong",
+#'     stuff = "foo"
+#'   ),
+#'   list(
+#'     name = "right",
+#'     other = "bar"
+#'   )
+#' )
+#' does_child_exist(dat, "right")
 does_child_exist <- function(children, dir_name) {
   purrr::map_lgl(children, function(child) {
     child$name %in% dir_name
   })
+}
+
+#' @title Pull out names of children
+#'
+#' @description Get the names of the child folders.
+#'
+#' @noRd
+#' @param dir_id Synapse folder synID
+child_names <- function(dir_id) {
+  children <- wrapper_synGetChildren(dir_id)
+  unlist(purrr::map(children, function(x) {
+    x$name
+  }))
+}
+
+#' @title synapser::synGetChildren Wrapper
+#'
+#' @description Wrapper around synapser::synGetChildren for mocking
+#' ease.
+#'
+#' @noRd
+#' @param dir_id Synapse folder synID
+#' @return List of children in dir_id
+wrapper_synGetChildren <- function(dir_id) {
+  synapser::synGetChildren(dir_id)$asList()
 }
