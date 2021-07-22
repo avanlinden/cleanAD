@@ -26,7 +26,8 @@ Suggests:
     mockery,
     testthat (>= 3.0.0)
 Remotes:
-    URL::github.com/Sage-Bionetworks/synapser/archive/refs/tags/0.10.89.zip
+    URL::https://github.com/Sage-Bionetworks/synapser
+    URL::https://github.com/Sage-Bionetworks/PythonEmbedInR
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

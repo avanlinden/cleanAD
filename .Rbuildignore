@@ -1,2 +1,4 @@
+^renv$
+^renv\.lock$
 ^cleanAD\.Rproj$
 ^\.Rproj\.user$
