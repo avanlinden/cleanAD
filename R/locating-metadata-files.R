@@ -103,7 +103,7 @@ does_child_exist <- function(children, dir_name) {
 #'
 #' @description Get the names of the child folders.
 #'
-#' @noRd
+#' @export
 #' @param dir_id Synapse folder synID
 child_names <- function(dir_id) {
   children <- wrapper_synGetChildren(dir_id)
