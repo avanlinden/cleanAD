@@ -3,6 +3,7 @@
 ##################################
 
 # Import package -----
+suppressPackageStartupMessages(library("cleanAD"))
 suppressPackageStartupMessages(library("log4r"))
 suppressPackageStartupMessages(library("lubridate"))
 suppressPackageStartupMessages(library("optparse"))
