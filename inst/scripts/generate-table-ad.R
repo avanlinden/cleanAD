@@ -92,9 +92,9 @@ opts <- optparse::parse_args(opt_parser)
 #' @param success TRUE if the task was completed successfully, else FALSE
 #' @param task_view synID for the task file view. If provided, will update the
 #' view after annotating the task folder.
-update_task_annotation <- function(annots, success, task_view = NA) {
+update_task_annotation <- function(task_id, annots, success, task_view = NA) {
   annots['completed_successfully'][[1]] <- success
-  synapser::synSetAnnotations(annots)
+  synapser::synSetAnnotations(task_id, annots)
   ## Force file view update, if given task_view
   if (!is.na(task_view)) {
     synTableQuery(glue::glue("SELECT * FROM {task_view}"))
@@ -110,16 +110,16 @@ RELEVANT_METADATA_COLUMNS <- c("individualID", "specimenID", "assay")
 METADATA_TYPES <- c("biospecimen", "assay", "individual")
 
 # # For local testing -- comment out
-# opts <- list(
-#   directories = c("syn5550383", "syn5550382"),
-#   consortia_dir = "syn5550378",
-#   id_table = "syn21578908",
-#   file_view = "syn11346063",
-#   log_dir = NA,
-#   task_id = NA,
-#   task_view = NA,
-#   authToken = NA
-# )
+opts <- list(
+  directories = c("syn5550383", "syn5550382"),
+  consortia_dir = "syn5550378",
+  id_table = "syn21578908",
+  file_view = "syn11346063",
+  log_dir = "./",
+  task_id = "syn25931452",
+  task_view = "syn25582622",
+  authToken = NA
+)
 
 ## Create logger
 ## Make sure a directory exists; create if doesn't
@@ -155,14 +155,15 @@ tryCatch(
 update_task <- FALSE
 annots <- NA
 if (!is.na(opts$task_id)) {
-  update_task <- TRUE
-  annots <- tryCatch(
+  tryCatch(
     {
-      synapser::synGetAnnotations(opts$task_id)
+      annots <<- synapser::synGetAnnotations(opts$task_id)
+      update_task <- TRUE
     },
     error = function(e) {
       if (update_task) {
         update_task_annotation(
+          task_id = opts$task_id,
           annots = annots,
           success = "false",
           task_view = opts$task_view
@@ -187,6 +188,7 @@ all_files <- tryCatch(
   error = function(e) {
     if (update_task) {
       update_task_annotation(
+        task_id = opts$task_id,
         annots = annots,
         success = "false",
         task_view = opts$task_view
@@ -219,6 +221,7 @@ view_query <- tryCatch(
   error = function(e) {
     if (update_task) {
       update_task_annotation(
+        task_id = opts$task_id,
         annots = annots,
         success = "false",
         task_view = opts$task_view
@@ -241,6 +244,7 @@ missing_cols <- setdiff(
 if (length(missing_cols) > 0) {
   if (update_task) {
     update_task_annotation(
+      task_id = opts$task_id,
       annots = annots,
       success = "false",
       task_view = opts$task_view
@@ -273,6 +277,7 @@ all_meta_ids <- tryCatch({
   error = function(e) {
     if (update_task) {
       update_task_annotation(
+        task_id = opts$task_id,
         annots = annots,
         success = "false",
         task_view = opts$task_view
@@ -306,6 +311,7 @@ if (!is.na(opts$consortia_dir)) {
     error = function(e) {
       if (update_task) {
         update_task_annotation(
+          task_id = opts$task_id,
           annots = annots,
           success = "false",
           task_view = opts$task_view
@@ -338,6 +344,7 @@ tryCatch(
   error = function(e) {
     if (update_task) {
       update_task_annotation(
+        task_id = opts$task_id,
         annots = annots,
         success = "false",
         task_view = opts$task_view
@@ -355,6 +362,7 @@ tryCatch(
 
 if (update_task) {
   update_task_annotation(
+    task_id = opts$task_id,
     annots = annots,
     success = "true",
     task_view = opts$task_view

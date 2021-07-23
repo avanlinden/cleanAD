@@ -14,16 +14,16 @@ Depends:
 Imports:
     dplyr,
     glue,
+    lubridate,
     purrr,
     readr,
     readxl,
-    reticulate,
-    synapser,
+    synapser (>= 0.11),
     tidyr
 Suggests:
-    docopt,
     log4r,
     mockery,
+    optparse,
     testthat (>= 3.0.0)
 Remotes:
     URL::github.com/Sage-Bionetworks/synapser/archive/refs/tags/0.10.89.zip
