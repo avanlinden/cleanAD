@@ -158,7 +158,7 @@ if (!is.na(opts$task_id)) {
   tryCatch(
     {
       annots <<- synapser::synGetAnnotations(opts$task_id)
-      update_task <- TRUE
+      update_task <<- TRUE
     },
     error = function(e) {
       if (update_task) {
