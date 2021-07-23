@@ -111,16 +111,16 @@ RELEVANT_METADATA_COLUMNS <- c("individualID", "specimenID", "assay")
 METADATA_TYPES <- c("biospecimen", "assay", "individual")
 
 # # For local testing -- comment out
-opts <- list(
-  directories = c("syn5550383", "syn5550382"),
-  consortia_dir = "syn5550378",
-  id_table = "syn21578908",
-  file_view = "syn11346063",
-  log_dir = "./",
-  task_id = "syn25931452",
-  task_view = "syn25582622",
-  authToken = NA
-)
+# opts <- list(
+#   directories = c("syn5550383", "syn5550382"),
+#   consortia_dir = "syn5550378",
+#   id_table = "syn21578908",
+#   file_view = "syn11346063",
+#   log_dir = "./",
+#   task_id = "syn25931452",
+#   task_view = "syn25582622",
+#   authToken = NA
+# )
 
 ## Create logger
 ## Make sure a directory exists; create if doesn't
