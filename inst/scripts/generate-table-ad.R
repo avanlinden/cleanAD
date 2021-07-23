@@ -276,7 +276,7 @@ all_files <- all_files[!grepl("dictionary|protocol", all_files$metadataType), ]
 
 ## Open files and gather IDs
 all_meta_ids <- tryCatch({
-    gather_ids_all_studies(all_files) -> all_meta_id
+    gather_ids_all_studies(all_files)
   },
   error = function(e) {
     if (update_task) {
