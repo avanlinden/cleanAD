@@ -122,6 +122,9 @@ METADATA_TYPES <- c("biospecimen", "assay", "individual")
 #   authToken = NA
 # )
 
+## If directories is a comma-separated list, need as vector
+opts$directories <- unlist(strsplit(opts$directories, split = ","))
+
 ## Create logger
 ## Make sure a directory exists; create if doesn't
 if (!is.na(opts$log_dir)) {
