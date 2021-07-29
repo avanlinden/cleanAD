@@ -111,16 +111,18 @@ RELEVANT_METADATA_COLUMNS <- c("individualID", "specimenID", "assay")
 METADATA_TYPES <- c("biospecimen", "assay", "individual")
 
 # # For local testing -- comment out
-opts <- list(
-  directories = c("syn5550383", "syn5550382"),
-  consortia_dir = "syn5550378",
-  id_table = "syn21578908",
-  file_view = "syn11346063",
-  log_dir = "./",
-  task_id = "syn25931452",
-  task_view = "syn25582622",
-  authToken = NA
-)
+# opts <- list(
+#   directories = c("syn5550383", "syn5550382"),
+#   consortia_dir = "syn5550378",
+#   id_table = "syn21578908",
+#   file_view = "syn11346063",
+#   log_dir = "./",
+#   task_id = "syn25931452",
+#   task_view = "syn25582622",
+#   authToken = NA
+# )
+
+
 
 ## Create logger
 ## Make sure a directory exists; create if doesn't
@@ -128,10 +130,12 @@ if (!is.na(opts$log_dir)) {
   if (!dir.exists(opts$log_dir)) {
     dir.create(opts$log_dir)
   }
+  logfile_name <- glue::glue("{year(today())}-{month(today())}")
+  logpath <- glue::glue("{opts$log_dir}/{logfile_name}.log")
+  logger <- create.logger(logfile = logpath, level = "INFO")
+} else {
+  stop("No log directory given. Retry with --log_dir <directory>.")
 }
-logfile_name <- glue::glue("{year(today())}-{month(today())}")
-logpath <- glue::glue("{opts$log_dir}/{logfile_name}.log")
-logger <- create.logger(logfile = logpath, level = "INFO")
 
 ## Use synapser and log in
 tryCatch(
@@ -162,14 +166,6 @@ if (!is.na(opts$task_id)) {
       update_task <<- TRUE
     },
     error = function(e) {
-      if (update_task) {
-        update_task_annotation(
-          task_id = opts$task_id,
-          annots = annots,
-          success = "false",
-          task_view = opts$task_view
-        )
-      }
       failure_message <- glue::glue(
         "Could not gather task annotations:\n  {e$message}"
       )

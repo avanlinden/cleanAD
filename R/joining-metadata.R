@@ -98,9 +98,18 @@ join_full_study_metadata <- function(meta_files) {
     metadata <- metadata[, c("individualID", "specimenID", "assay")]
     return(metadata)
   }
+
+  # Assay(s) only -- very unlikely; would only happen in cases of individualID
+  # assays (e.g. MRI, PET) with individuals from a different study
+  if (all(!not_na$individual, !not_na$biospecimen, all(not_na$assay))) {
+    # Join up the assays
+    metadata <- join_ids_assay_all(meta_files)
+    metadata <- metadata[, c("individualID", "specimenID", "assay")]
+    return(metadata)
+  }
+
   # Should have returned by now. Error if get to this.
-  # This means should have come across an oddity, like a single assay file
-  # or a single biospecimen file
+  # This means should have come across an oddity, like a single biospecimen file
   stop(
     "The metadata set does not have any expected combinations of filetypes"
   )

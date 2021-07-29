@@ -175,24 +175,58 @@ test_that("join_full_study_metadata returns expected data", {
   expect_equal(res10, expected10)
 })
 
-test_that("join_full_study_metadata errors if only biospecimen or assay", {
-  dat1 <- tibble::tibble(
-    metadataType = c("biospecimen", "assay"),
-    assay = c(NA, "rnaSeq"),
+test_that("join_full_study_metadata handles assay only studies", {
+  dat <- tibble::tibble(
+    metadataType = c("assay", "assay", "assay"),
+    assay = c("a1", "a2", "a3"),
+    data = list(
+      tibble::tibble(
+        specimenID = c("s1", "s2"),
+        assay = "a1"
+      ),
+      tibble::tibble(
+        individualID = c("i1", "i2", "i3"),
+        assay = "a2"
+      ),
+      tibble::tibble(
+        specimenID = c("s3", "s4", "s5"),
+        individualID = c("i1", "i2", "i3"),
+        assay = "a3"
+      )
+    )
+  )
+  ## One assay
+  expected1 <- tibble::tibble(
+    individualID = as.character(NA),
+    specimenID = c("s1", "s2"),
+    assay = "a1"
+  )
+  res1 <- join_full_study_metadata(dat[1, ])
+  expect_equal(res1, expected1)
+
+  ## Three assays should just be row binded
+  expected2 <- tibble::tibble(
+    individualID = c(NA, NA, "i1", "i2", "i3", "i1", "i2", "i3"),
+    specimenID = c("s1", "s2", NA, NA, NA, "s3", "s4", "s5"),
+    assay = c("a1", "a1", "a2", "a2", "a2", "a3", "a3", "a3")
+  )
+  res2 <- join_full_study_metadata(dat)
+  expect_equal(res2, expected2)
+})
+
+test_that("join_full_study_metadata errors if only biospecimen", {
+  dat <- tibble::tibble(
+    metadataType = c("biospecimen"),
+    assay = as.character(NA),
     data = list(
       tibble::tibble(
         individualID = c("i1", "i2", "i3"),
         specimenID = c("s1", "s2", "s3"),
         assay = c("rnaSeq", "rnaSeq", "rnaSeq")
-      ),
-      tibble::tibble(
-        specimenID = c("s1", "s2", "s3"),
-        assay = c("rnaSeq", "rnaSeq", "rnaSeq")
       )
     )
   )
-  expect_error(join_full_study_metadata(dat1[1, ]))
-  expect_error(join_full_study_metadata(dat1[2, ]))
+  expect_error(join_full_study_metadata(dat))
 })
 
 ## -----------------------------------------------------------------------------
@@ -733,4 +767,44 @@ test_that("add_missing_specimens adds expected missing specimens", {
   )
   res3 <- add_missing_specimens(meta_df = dat1, annot_df = dat4)
   expect_equal(res3, expected3)
+})
+
+## -----------------------------------------------------------------------------
+test_that("join_ids_assay_all handles one or more assays", {
+  dat <- tibble::tibble(
+    metadataType = c("assay", "assay", "assay"),
+    assay = c("a1", "a2", "a3"),
+    data = list(
+      tibble::tibble(
+        specimenID = c("s1", "s2"),
+        assay = "a1"
+      ),
+      tibble::tibble(
+        individualID = c("i1", "i2", "i3"),
+        assay = "a2"
+      ),
+      tibble::tibble(
+        specimenID = c("s3", "s4", "s5"),
+        individualID = c("i1", "i2", "i3"),
+        assay = "a3"
+      )
+    )
+  )
+  ## One assay
+  expected1 <- tibble::tibble(
+    specimenID = c("s1", "s2"),
+    assay = "a1",
+    individualID = as.character(NA)
+  )
+  res1 <- join_ids_assay_all(dat[1, ])
+  expect_equal(res1, expected1)
+
+  ## Three assays should just be row binded
+  expected2 <- tibble::tibble(
+    specimenID = c("s1", "s2", NA, NA, NA, "s3", "s4", "s5"),
+    assay = c("a1", "a1", "a2", "a2", "a2", "a3", "a3", "a3"),
+    individualID = c(NA, NA, "i1", "i2", "i3", "i1", "i2", "i3")
+  )
+  res2 <- join_ids_assay_all(dat)
+  expect_equal(res2, expected2)
 })
