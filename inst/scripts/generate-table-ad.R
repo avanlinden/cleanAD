@@ -122,7 +122,8 @@ METADATA_TYPES <- c("biospecimen", "assay", "individual")
 #   authToken = NA
 # )
 
-
+## If directories is a comma-separated list, need as vector
+opts$directories <- unlist(strsplit(opts$directories, split = ","))
 
 ## Create logger
 ## Make sure a directory exists; create if doesn't
@@ -269,7 +270,7 @@ all_files <- all_files[!grepl("dictionary|protocol", all_files$metadataType), ]
 
 ## Open files and gather IDs
 all_meta_ids <- tryCatch({
-    gather_ids_all_studies(all_files) -> all_meta_id
+    gather_ids_all_studies(all_files)
   },
   error = function(e) {
     if (update_task) {
