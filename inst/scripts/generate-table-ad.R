@@ -57,6 +57,7 @@ if (!is.na(get_config("log_folder", opts$config))) {
   logfile_name <- glue::glue("{year(today())}-{month(today())}")
   log_path <- glue::glue("LOGS/{logfile_name}.log")
   logger <- create.logger(logfile = log_path, level = "INFO")
+  upload_log <- TRUE
 }
 
 ## Use synapser and log in

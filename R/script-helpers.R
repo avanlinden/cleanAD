@@ -29,7 +29,6 @@ upload_log <- function(folder, path) {
   synStore(syn_file)
 }
 
-
 #' Get config
 #'
 #' @export
