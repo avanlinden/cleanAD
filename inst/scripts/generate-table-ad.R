@@ -50,7 +50,7 @@ METADATA_TYPES <- c("biospecimen", "assay", "individual")
 ## Create logger if want to generate logs
 log_path <- NA
 logger <- NA
-if (get_config("create_log", opts$config)) {
+if (upload_log) {
   ## Create temp directory to store log in
   dir.create("LOGS")
   logfile_name <- glue::glue("{year(today())}-{month(today())}")
@@ -68,7 +68,7 @@ tryCatch(
     }
   },
   error = function(e) {
-    if (get_config("create_log", opts$config)) {
+    if (upload_log) {
       failure_message <- glue::glue(
         "Log in error:\n  {e$message}"
       )
@@ -82,13 +82,15 @@ tryCatch(
 ## If not provided with task_id, don't update
 update_task <- FALSE
 annots <- NA
-log_folder <- NA
+upload_log <- NA
 if (!is.na(get_config("task_id", opts$config))) {
   tryCatch(
     {
       annots <<- synapser::synGetAnnotations(get_config("task_id", opts$config))
       update_task <<- TRUE
-      log_folder <<- annots$log_folder[[1]]
+      if (!is.na(get_config("upload_folder", opts$config))) {
+        upload_log <<- TRUE
+      }
     },
     error = function(e) {
       failure_message <- glue::glue(
@@ -115,13 +117,13 @@ all_files <- tryCatch(
         success = "false",
         task_view = get_config("task_view", opts$config)
       )
-      if (get_config("create_log", opts$config)) {
+      if (upload_log) {
         failure_message <- glue::glue(
           "There was a problem getting synIDs for metadata files:\n  {e$message}"
         )
         error(logger, failure_message)
         upload_log(
-          folder = log_folder,
+          folder = get_config("log_folder", opts$config),
           path = log_path
         )
       }
@@ -154,13 +156,13 @@ view_query <- tryCatch(
         success = "false",
         task_view = get_config("task_view", opts$config)
       )
-      if (get_config("create_log", opts$config)) {
+      if (upload_log) {
         failure_message <- glue::glue(
           "There was a problem getting the file view:\n  {e$message}"
         )
         error(logger, failure_message)
         upload_log(
-          folder = log_folder,
+          folder = get_config("log_folder", opts$config),
           path = log_path
         )
       }
@@ -183,14 +185,14 @@ if (length(missing_cols) > 0) {
       success = "false",
       task_view = get_config("task_view", opts$config)
     )
-    if (get_config("create_log", opts$config)) {
+    if (upload_log) {
       missing <- glue::glue_collapse(missing_cols, sep = ", ")
       failure_message <- glue::glue(
         "The file view is missing these columns:\n  {missing}"
       )
       error(logger, failure_message)
       upload_log(
-        folder = log_folder,
+        folder = get_config("log_folder", opts$config),
         path = log_path
       )
     }
@@ -222,13 +224,13 @@ all_meta_ids <- tryCatch({
         success = "false",
         task_view = get_config("task_view", opts$config)
       )
-      if (get_config("create_log", opts$config)) {
+      if (upload_log) {
         failure_message <- glue::glue(
           "There was a problem gathering metadata from the files:\n  {e$message}"
         )
         error(logger, failure_message)
         upload_log(
-          folder = log_folder,
+          folder = get_config("log_folder", opts$config),
           path = log_path
         )
       }
@@ -262,13 +264,13 @@ if (!is.na(get_config("consortia_dir", opts$config))) {
           success = "false",
           task_view = get_config("task_view", opts$config)
         )
-        if (get_config("create_log", opts$config)) {
+        if (upload_log) {
           failure_message <- glue::glue(
             "There was a problem gathering consortia study names:\n  {e$message}"
           )
           error(logger, failure_message)
           upload_log(
-            folder = log_folder,
+            folder = get_config("log_folder", opts$config),
             path = log_path
           )
         }
@@ -291,7 +293,10 @@ all_ids <- add_missing_specimens(meta_df = all_meta_ids, annot_df = all_annots)
 #! IS CORRECT BEFORE DEPLOYING
 tryCatch(
   {
-    update_samples_table(table_id = opts$id_table, new_data = all_ids)
+    update_samples_table(
+      table_id = get_config("id_table", opts$config),
+      new_data = all_ids
+    )
   },
   error = function(e) {
     if (update_task) {
@@ -301,13 +306,13 @@ tryCatch(
         success = "false",
         task_view = get_config("task_view", opts$config)
       )
-      if (get_config("create_log", opts$config)) {
+      if (upload_log) {
         failure_message <- glue::glue(
           "There was a problem updating the specimen table:\n  {e$message}"
         )
         error(logger, failure_message)
         upload_log(
-          folder = log_folder,
+          folder = get_config("log_folder", opts$config),
           path = log_path
         )
       }
