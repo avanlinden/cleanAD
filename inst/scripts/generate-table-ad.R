@@ -50,7 +50,8 @@ METADATA_TYPES <- c("biospecimen", "assay", "individual")
 ## Create logger if want to generate logs
 log_path <- NA
 logger <- NA
-if (upload_log) {
+upload_log <- FALSE
+if (!is.na(get_config("log_folder", opts$config))) {
   ## Create temp directory to store log in
   dir.create("LOGS")
   logfile_name <- glue::glue("{year(today())}-{month(today())}")
@@ -82,15 +83,11 @@ tryCatch(
 ## If not provided with task_id, don't update
 update_task <- FALSE
 annots <- NA
-upload_log <- NA
 if (!is.na(get_config("task_id", opts$config))) {
   tryCatch(
     {
       annots <<- synapser::synGetAnnotations(get_config("task_id", opts$config))
       update_task <<- TRUE
-      if (!is.na(get_config("upload_folder", opts$config))) {
-        upload_log <<- TRUE
-      }
     },
     error = function(e) {
       failure_message <- glue::glue(
