@@ -13,7 +13,7 @@ suppressPackageStartupMessages(library("synapser"))
 
 option_list <- list(
   optparse::make_option(
-    "--authToken",
+    "--auth_token",
     type = "character",
     action = "store",
     default = NA,
@@ -22,7 +22,7 @@ option_list <- list(
             credentials."
   ),
   optparse::make_option(
-    "--directories",
+    "--config",
     type = "character",
     action = "store",
     help = "Synapse synIDs for top level directories to search for metadata as
@@ -33,96 +33,11 @@ option_list <- list(
             exist within the study folder: either the first level of the study
             folder or the second level of the study folder, within a folder
             called Data. In either case, the folder should be called Metadata."
-  ),
-  optparse::make_option(
-    "--consortia_dir",
-    type = "character",
-    action = "store",
-    default = NA,
-    help = "Synapse synID for top level directory associated with
-            consortium studies [default: NA]. The first level of
-            folders within this directory should be named after their
-            study. These study names will be removed from the specimen
-            table."
-  ),
-  optparse::make_option(
-    "--id_table",
-    type = "character",
-    action = "store",
-    help = "Synapse synID for the specimen table. Table should exist with the
-            columns: study, individualID, specimenID, assay."
-  ),
-  optparse::make_option(
-    "--file_view",
-    type = "character",
-    action = "store",
-    help = "Synapse synID for file view with all annotated data
-            [default = %default]. This is used to gather specimenID and
-            individualID for studies that do not have metadata or are missing
-            this information in their metadata. It is also used to gather the
-            annotations on the metadata files."
-  ),
-  optparse::make_option(
-    "--create_logs",
-    type = "logical",
-    action = "store_true",
-    help = "If included, will generate a log file and attempt to store in
-            Synapse. Requires parameter `--task_id` to be given and the
-            annotations on the entity located at the `--task_id` to include
-            'log_folder' with the synID of the folder to upload the log to."
-  ),
-  optparse::make_option(
-    "--task_id",
-    type = "character",
-    action = "store",
-    default = NA,
-    help = "Synapse synID to update annotations on for tracking success of the
-            task [default = %default]. Requires the annotations
-            'completed_successfully' (boolean), 'log_folder' (if wanting to
-            store logs)."
-  ),
-  optparse::make_option(
-    "--task_view",
-    type = "character",
-    default = NA,
-    help = "Synapse synID of file view that includes task_id
-            [default = %default]."
   )
 )
 
 opt_parser <- optparse::OptionParser(option_list = option_list)
 opts <- optparse::parse_args(opt_parser)
-
-## Tracking Functions ----------------------------------------------------------
-
-#' Update task annotation
-#'
-#' Update the 'completed_successfully' task annotation on a Synapse folder.
-#' Expected that the annotation is a text type.
-#'
-#' @param annots Synapse annotation object for the task folder
-#' @param success TRUE if the task was completed successfully, else FALSE
-#' @param task_view synID for the task file view. If provided, will update the
-#' view after annotating the task folder.
-update_task_annotation <- function(task_id, annots, success, task_view = NA) {
-  annots['completed_successfully'][[1]] <- success
-  synapser::synSetAnnotations(task_id, annots)
-  ## Force file view update, if given task_view
-  if (!is.na(task_view)) {
-    synTableQuery(glue::glue("SELECT * FROM {task_view}"))
-  }
-}
-
-#' Upload the log file to Synapse
-#'
-#' Upload the log file to Synapse
-#'
-#' @param folder synID of parent folder for logs
-#' @param path log file path
-upload_log <- function(folder, path) {
-  syn_file <- File(path = path, parent = parent)
-  synStore(syn_file)
-}
 
 ## Setup -----------------------------------------------------------------------
 
@@ -132,25 +47,10 @@ FILE_VIEW_COLUMNS_JOIN <- c("id", "dataType", "metadataType", "assay")
 RELEVANT_METADATA_COLUMNS <- c("individualID", "specimenID", "assay")
 METADATA_TYPES <- c("biospecimen", "assay", "individual")
 
-# # For local testing -- comment out
-# opts <- list(
-#   directories = c("syn5550383", "syn5550382"),
-#   consortia_dir = "syn5550378",
-#   id_table = "syn21578908",
-#   file_view = "syn11346063",
-#   log_dir = "./",
-#   task_id = "syn25931452",
-#   task_view = "syn25582622",
-#   authToken = NA
-# )
-
-## If directories is a comma-separated list, need as vector
-opts$directories <- unlist(strsplit(opts$directories, split = ","))
-
 ## Create logger if want to generate logs
 log_path <- NA
 logger <- NA
-if (opts$create_log) {
+if (get_config("create_log", opts$config)) {
   ## Create temp directory to store log in
   log_dir <- dir.create("LOGS")
   logfile_name <- glue::glue("{year(today())}-{month(today())}")
@@ -161,14 +61,14 @@ if (opts$create_log) {
 ## Use synapser and log in
 tryCatch(
   {
-    if(is.na(opts$authToken)) {
+    if(is.na(opts$auth_token)) {
       synLogin()
     } else {
-      synLogin(authToken = opts$authToken)
+      synLogin(authToken = opts$auth_token)
     }
   },
   error = function(e) {
-    if (opts$create_log) {
+    if (get_config("create_log", opts$config)) {
       failure_message <- glue::glue(
         "Log in error:\n  {e$message}"
       )
@@ -183,10 +83,10 @@ tryCatch(
 update_task <- FALSE
 annots <- NA
 log_folder <- NA
-if (!is.na(opts$task_id)) {
+if (!is.na(get_config("task_id", opts$config))) {
   tryCatch(
     {
-      annots <<- synapser::synGetAnnotations(opts$task_id)
+      annots <<- synapser::synGetAnnotations(get_config("task_id", opts$config))
       update_task <<- TRUE
       log_folder <<- annots$log_folder[[1]]
     },
@@ -205,17 +105,17 @@ if (!is.na(opts$task_id)) {
 ## Get study metadata file IDs -----
 all_files <- tryCatch(
   {
-    purrr::map_dfr(opts$directories, ~ gather_metadata_synIDs_all(.))
+    purrr::map_dfr(get_config("directories", opts$config), ~ gather_metadata_synIDs_all(.))
   },
   error = function(e) {
     if (update_task) {
       update_task_annotation(
-        task_id = opts$task_id,
+        task_id = get_config("task_id", opts$config),
         annots = annots,
         success = "false",
-        task_view = opts$task_view
+        task_view = get_config("task_view", opts$config)
       )
-      if (opts$create_log) {
+      if (get_config("create_log", opts$config)) {
         failure_message <- glue::glue(
           "There was a problem getting synIDs for metadata files:\n  {e$message}"
         )
@@ -243,18 +143,18 @@ all_files$id <- as.character(all_files$id)
 view_query <- tryCatch(
   {
     synapser::synTableQuery(
-      glue::glue("SELECT * FROM {opts$file_view}")
+      glue::glue("SELECT * FROM {get_config('file_view', opts$config)}")
     )$asDataFrame()
   },
   error = function(e) {
     if (update_task) {
       update_task_annotation(
-        task_id = opts$task_id,
+        task_id = get_config("task_id", opts$config),
         annots = annots,
         success = "false",
-        task_view = opts$task_view
+        task_view = get_config("task_view", opts$config)
       )
-      if (opts$create_log) {
+      if (get_config("create_log", opts$config)) {
         failure_message <- glue::glue(
           "There was a problem getting the file view:\n  {e$message}"
         )
@@ -278,12 +178,12 @@ missing_cols <- setdiff(
 if (length(missing_cols) > 0) {
   if (update_task) {
     update_task_annotation(
-      task_id = opts$task_id,
+      task_id = get_config("task_id", opts$config),
       annots = annots,
       success = "false",
-      task_view = opts$task_view
+      task_view = get_config("task_view", opts$config)
     )
-    if (opts$create_log) {
+    if (get_config("create_log", opts$config)) {
       missing <- glue::glue_collapse(missing_cols, sep = ", ")
       failure_message <- glue::glue(
         "The file view is missing these columns:\n  {missing}"
@@ -317,12 +217,12 @@ all_meta_ids <- tryCatch({
   error = function(e) {
     if (update_task) {
       update_task_annotation(
-        task_id = opts$task_id,
+        task_id = get_config("task_id", opts$config),
         annots = annots,
         success = "false",
-        task_view = opts$task_view
+        task_view = get_config("task_view", opts$config)
       )
-      if (opts$create_log) {
+      if (get_config("create_log", opts$config)) {
         failure_message <- glue::glue(
           "There was a problem gathering metadata from the files:\n  {e$message}"
         )
@@ -348,21 +248,21 @@ all_annots[, "study"] <- unlist(purrr::map(
 # Separate into multiple rows for IDs that have multiple study annotations
 all_annots <- tidyr::separate_rows(all_annots, study, sep = ",")
 # Remove any with consortia study name
-if (!is.na(opts$consortia_dir)) {
+if (!is.na(get_config("consortia_dir", opts$config))) {
   all_annots <- tryCatch(
     {
-      consortia_studies <- child_names(opts$consortia_dir)
+      consortia_studies <- child_names(get_config("consortia_dir", opts$config))
       all_annots[!all_annots$study %in% consortia_studies, ]
     },
     error = function(e) {
       if (update_task) {
         update_task_annotation(
-          task_id = opts$task_id,
+          task_id = get_config("task_id", opts$config),
           annots = annots,
           success = "false",
-          task_view = opts$task_view
+          task_view = get_config("task_view", opts$config)
         )
-        if (opts$create_log) {
+        if (get_config("create_log", opts$config)) {
           failure_message <- glue::glue(
             "There was a problem gathering consortia study names:\n  {e$message}"
           )
@@ -396,12 +296,12 @@ tryCatch(
   error = function(e) {
     if (update_task) {
       update_task_annotation(
-        task_id = opts$task_id,
+        task_id = get_config("task_id", opts$config),
         annots = annots,
         success = "false",
-        task_view = opts$task_view
+        task_view = get_config("task_view", opts$config)
       )
-      if (opts$create_log) {
+      if (get_config("create_log", opts$config)) {
         failure_message <- glue::glue(
           "There was a problem updating the specimen table:\n  {e$message}"
         )
@@ -420,10 +320,10 @@ tryCatch(
 
 if (update_task) {
   update_task_annotation(
-    task_id = opts$task_id,
+    task_id = get_config("task_id", opts$config),
     annots = annots,
     success = "true",
-    task_view = opts$task_view
+    task_view = get_config("task_view", opts$config)
   )
 }
 
