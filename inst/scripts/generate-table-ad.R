@@ -58,12 +58,6 @@ option_list <- list(
             annotations on the metadata files."
   ),
   optparse::make_option(
-    "--log_dir",
-    type = "character",
-    default = "./log",
-    help = "Directory to output log files to [default = %default]."
-  ),
-  optparse::make_option(
     "--task_id",
     type = "character",
     default = NA,
@@ -82,7 +76,7 @@ option_list <- list(
 opt_parser <- optparse::OptionParser(option_list = option_list)
 opts <- optparse::parse_args(opt_parser)
 
-## Functions -------------------------------------------------------------------
+## Tracking Functions ----------------------------------------------------------
 
 #' Update task annotation
 #'
@@ -100,6 +94,17 @@ update_task_annotation <- function(task_id, annots, success, task_view = NA) {
   if (!is.na(task_view)) {
     synTableQuery(glue::glue("SELECT * FROM {task_view}"))
   }
+}
+
+#' Upload the log file to Synapse
+#'
+#' Upload the log file to Synapse
+#'
+#' @param folder synID of parent folder for logs
+#' @param path log file path
+upload_log <- function(folder, path) {
+  syn_file <- File(path = path, parent = parent)
+  synStore(syn_file)
 }
 
 ## Setup -----------------------------------------------------------------------
@@ -126,17 +131,11 @@ METADATA_TYPES <- c("biospecimen", "assay", "individual")
 opts$directories <- unlist(strsplit(opts$directories, split = ","))
 
 ## Create logger
-## Make sure a directory exists; create if doesn't
-if (!is.na(opts$log_dir)) {
-  if (!dir.exists(opts$log_dir)) {
-    dir.create(opts$log_dir)
-  }
-  logfile_name <- glue::glue("{year(today())}-{month(today())}")
-  logpath <- glue::glue("{opts$log_dir}/{logfile_name}.log")
-  logger <- create.logger(logfile = logpath, level = "INFO")
-} else {
-  stop("No log directory given. Retry with --log_dir <directory>.")
-}
+## Create temp directory to store log in
+log_dir <- dir.create("LOGS")
+logfile_name <- glue::glue("{year(today())}-{month(today())}")
+log_path <- glue::glue("{log_dir}/{logfile_name}.log")
+logger <- create.logger(logfile = log_path, level = "INFO")
 
 ## Use synapser and log in
 tryCatch(
@@ -160,11 +159,13 @@ tryCatch(
 ## If not provided with task_id, don't update
 update_task <- FALSE
 annots <- NA
+log_folder <- NA
 if (!is.na(opts$task_id)) {
   tryCatch(
     {
       annots <<- synapser::synGetAnnotations(opts$task_id)
       update_task <<- TRUE
+      log_folder <<- annots$log_folder[[1]]
     },
     error = function(e) {
       failure_message <- glue::glue(
@@ -184,6 +185,10 @@ all_files <- tryCatch(
     purrr::map_dfr(opts$directories, ~ gather_metadata_synIDs_all(.))
   },
   error = function(e) {
+    failure_message <- glue::glue(
+      "There was a problem getting synIDs for metadata files:\n  {e$message}"
+    )
+    error(logger, failure_message)
     if (update_task) {
       update_task_annotation(
         task_id = opts$task_id,
@@ -191,11 +196,11 @@ all_files <- tryCatch(
         success = "false",
         task_view = opts$task_view
       )
+      upload_log(
+        folder = log_folder,
+        path = log_path
+      )
     }
-    failure_message <- glue::glue(
-      "There was a problem getting synIDs for metadata files:\n  {e$message}"
-    )
-    error(logger, failure_message)
     quit(status = 1)
   }
 )
@@ -217,6 +222,10 @@ view_query <- tryCatch(
     )$asDataFrame()
   },
   error = function(e) {
+    failure_message <- glue::glue(
+      "There was a problem getting the file view:\n  {e$message}"
+    )
+    error(logger, failure_message)
     if (update_task) {
       update_task_annotation(
         task_id = opts$task_id,
@@ -224,11 +233,11 @@ view_query <- tryCatch(
         success = "false",
         task_view = opts$task_view
       )
+      upload_log(
+        folder = log_folder,
+        path = log_path
+      )
     }
-    failure_message <- glue::glue(
-      "There was a problem getting the file view:\n  {e$message}"
-    )
-    error(logger, failure_message)
     quit(status = 1)
   }
 )
@@ -240,6 +249,11 @@ missing_cols <- setdiff(
   colnames(view_query)
 )
 if (length(missing_cols) > 0) {
+  missing <- glue::glue_collapse(missing_cols, sep = ", ")
+  failure_message <- glue::glue(
+    "The file view is missing these columns:\n  {missing}"
+  )
+  error(logger, failure_message)
   if (update_task) {
     update_task_annotation(
       task_id = opts$task_id,
@@ -247,12 +261,11 @@ if (length(missing_cols) > 0) {
       success = "false",
       task_view = opts$task_view
     )
+    upload_log(
+      folder = log_folder,
+      path = log_path
+    )
   }
-  missing <- glue::glue_collapse(missing_cols, sep = ", ")
-  failure_message <- glue::glue(
-    "The file view is missing these columns:\n  {missing}"
-  )
-  error(logger, failure_message)
   quit(status = 1)
 }
 
@@ -273,6 +286,10 @@ all_meta_ids <- tryCatch({
     gather_ids_all_studies(all_files)
   },
   error = function(e) {
+    failure_message <- glue::glue(
+      "There was a problem gathering metadata from the files:\n  {e$message}"
+    )
+    error(logger, failure_message)
     if (update_task) {
       update_task_annotation(
         task_id = opts$task_id,
@@ -280,11 +297,11 @@ all_meta_ids <- tryCatch({
         success = "false",
         task_view = opts$task_view
       )
+      upload_log(
+        folder = log_folder,
+        path = log_path
+      )
     }
-    failure_message <- glue::glue(
-      "There was a problem gathering metadata from the files:\n  {e$message}"
-    )
-    error(logger, failure_message)
     quit(status = 1)
   }
 )
@@ -307,6 +324,10 @@ if (!is.na(opts$consortia_dir)) {
       all_annots[!all_annots$study %in% consortia_studies, ]
     },
     error = function(e) {
+      failure_message <- glue::glue(
+        "There was a problem gathering consortia study names:\n  {e$message}"
+      )
+      error(logger, failure_message)
       if (update_task) {
         update_task_annotation(
           task_id = opts$task_id,
@@ -314,11 +335,11 @@ if (!is.na(opts$consortia_dir)) {
           success = "false",
           task_view = opts$task_view
         )
+        upload_log(
+          folder = log_folder,
+          path = log_path
+        )
       }
-      failure_message <- glue::glue(
-        "There was a problem gathering consortia study names:\n  {e$message}"
-      )
-      error(logger, failure_message)
       quit(status = 1)
     }
   )
@@ -340,6 +361,10 @@ tryCatch(
     update_samples_table(table_id = opts$id_table, new_data = all_ids)
   },
   error = function(e) {
+    failure_message <- glue::glue(
+      "There was a problem updating the specimen table:\n  {e$message}"
+    )
+    error(logger, failure_message)
     if (update_task) {
       update_task_annotation(
         task_id = opts$task_id,
@@ -347,11 +372,11 @@ tryCatch(
         success = "false",
         task_view = opts$task_view
       )
+      upload_log(
+        folder = log_folder,
+        path = log_path
+      )
     }
-    failure_message <- glue::glue(
-      "There was a problem updating the specimen table:\n  {e$message}"
-    )
-    error(logger, failure_message)
     quit(status = 1)
   }
 )
