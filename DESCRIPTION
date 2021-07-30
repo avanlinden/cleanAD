@@ -21,6 +21,7 @@ Imports:
     synapser (>= 0.11),
     tidyr
 Suggests:
+    config,
     log4r,
     mockery,
     optparse,

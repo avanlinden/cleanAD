@@ -13,7 +13,7 @@ suppressPackageStartupMessages(library("synapser"))
 
 option_list <- list(
   optparse::make_option(
-    "--authToken",
+    "--auth_token",
     type = "character",
     default = NA,
     help = "Synapse personal access token to log in with [default = %default].
@@ -21,7 +21,7 @@ option_list <- list(
             credentials."
   ),
   optparse::make_option(
-    "--directories",
+    "--config",
     type = "character",
     help = "Synapse synIDs for top level directories to search for metadata as
             comma-separated list (e.g. --directories syn123,syn789). Folders
@@ -31,76 +31,11 @@ option_list <- list(
             exist within the study folder: either the first level of the study
             folder or the second level of the study folder, within a folder
             called Data. In either case, the folder should be called Metadata."
-  ),
-  optparse::make_option(
-    "--consortia_dir",
-    type = "character",
-    default = NA,
-    help = "Synapse synID for top level directory associated with
-            consortium studies [default: NA]. The first level of
-            folders within this directory should be named after their
-            study. These study names will be removed from the specimen
-            table."
-  ),
-  optparse::make_option(
-    "--id_table",
-    type = "character",
-    help = "Synapse synID for the specimen table. Table should exist with the
-            columns: study, individualID, specimenID, assay."
-  ),
-  optparse::make_option(
-    "--file_view",
-    type = "character",
-    help = "Synapse synID for file view with all annotated data
-            [default = %default]. This is used to gather specimenID and
-            individualID for studies that do not have metadata or are missing
-            this information in their metadata. It is also used to gather the
-            annotations on the metadata files."
-  ),
-  optparse::make_option(
-    "--log_dir",
-    type = "character",
-    default = "./log",
-    help = "Directory to output log files to [default = %default]."
-  ),
-  optparse::make_option(
-    "--task_id",
-    type = "character",
-    default = NA,
-    help = "Synapse synID to update annotations on for tracking success of the
-            task [default = %default]."
-  ),
-  optparse::make_option(
-    "--task_view",
-    type = "character",
-    default = NA,
-    help = "Synapse synID of file view that includes task_id
-            [default = %default]."
   )
 )
 
 opt_parser <- optparse::OptionParser(option_list = option_list)
 opts <- optparse::parse_args(opt_parser)
-
-## Functions -------------------------------------------------------------------
-
-#' Update task annotation
-#'
-#' Update the 'completed_successfully' task annotation on a Synapse folder.
-#' Expected that the annotation is a text type.
-#'
-#' @param annots Synapse annotation object for the task folder
-#' @param success TRUE if the task was completed successfully, else FALSE
-#' @param task_view synID for the task file view. If provided, will update the
-#' view after annotating the task folder.
-update_task_annotation <- function(task_id, annots, success, task_view = NA) {
-  annots['completed_successfully'][[1]] <- success
-  synapser::synSetAnnotations(task_id, annots)
-  ## Force file view update, if given task_view
-  if (!is.na(task_view)) {
-    synTableQuery(glue::glue("SELECT * FROM {task_view}"))
-  }
-}
 
 ## Setup -----------------------------------------------------------------------
 
@@ -109,21 +44,6 @@ FILE_VIEW_COLUMNS_BIND <- c("study", "individualID", "specimenID", "assay")
 FILE_VIEW_COLUMNS_JOIN <- c("id", "dataType", "metadataType", "assay")
 RELEVANT_METADATA_COLUMNS <- c("individualID", "specimenID", "assay")
 METADATA_TYPES <- c("biospecimen", "assay", "individual")
-
-# # For local testing -- comment out
-# opts <- list(
-#   directories = c("syn5550383", "syn5550382"),
-#   consortia_dir = "syn5550378",
-#   id_table = "syn21578908",
-#   file_view = "syn11346063",
-#   log_dir = "./",
-#   task_id = "syn25931452",
-#   task_view = "syn25582622",
-#   authToken = NA
-# )
-
-## If directories is a comma-separated list, need as vector
-opts$directories <- unlist(strsplit(opts$directories, split = ","))
 
 ## Create logger
 ## Make sure a directory exists; create if doesn't
