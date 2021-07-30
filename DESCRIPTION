@@ -1,0 +1,34 @@
+Package: cleanAD
+Title: Curator Tools for Cleaning AD Knowledge Portal Data
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Nicole",
+           family = "Kauer",
+           role = c("aut", "cre"),
+           email = "nicole.kauer@sagebase.org")
+Description: Tools for cleaning and organizing study data for the AD Knowledge 
+    Portal.
+License: MIT + file LICENSE
+Depends:
+    R (>= 3.4)
+Imports:
+    dplyr,
+    glue,
+    lubridate,
+    purrr,
+    readr,
+    readxl,
+    synapser (>= 0.11),
+    tidyr
+Suggests:
+    config,
+    log4r,
+    mockery,
+    optparse,
+    testthat (>= 3.0.0)
+Remotes:
+    URL::github.com/Sage-Bionetworks/synapser/archive/refs/tags/0.10.89.zip
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
