@@ -3,7 +3,7 @@
 #' Update the 'completed_successfully' task annotation on a Synapse folder.
 #' Expected that the annotation is a text type.
 #'
-#' @noRd
+#' @export
 #' @param annots Synapse annotation object for the task folder
 #' @param success TRUE if the task was completed successfully, else FALSE
 #' @param task_view synID for the task file view. If provided, will update the
@@ -21,7 +21,7 @@ update_task_annotation <- function(task_id, annots, success, task_view = NA) {
 #'
 #' Upload the log file to Synapse
 #'
-#' @noRd
+#' @export
 #' @param folder synID of parent folder for logs
 #' @param path log file path
 upload_log <- function(folder, path) {
@@ -32,7 +32,8 @@ upload_log <- function(folder, path) {
 
 #' Get config
 #'
-#' @noRd
+#' @export
+#' @param value the config value to return
 #' @param config the config settings needed
 get_config <- function(value, config) {
   config::get(
