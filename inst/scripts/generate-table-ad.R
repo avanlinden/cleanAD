@@ -53,7 +53,9 @@ logger <- NA
 upload_log <- FALSE
 if (!is.na(get_config("log_folder", opts$config))) {
   ## Create temp directory to store log in
-  dir.create("LOGS")
+  if(!dir.exists("LOGS")) {
+    dir.create("LOGS")
+  }
   logfile_name <- glue::glue("{year(today())}-{month(today())}")
   log_path <- glue::glue("LOGS/{logfile_name}.log")
   logger <- create.logger(logfile = log_path, level = "INFO")
