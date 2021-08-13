@@ -21,9 +21,7 @@ RUN apt-get install git-all -y
 
 # Clone repo and install
 RUN git clone https://github.com/Sage-Bionetworks/cleanAD.git && \
-    cd cleanAD && \
-    chmod +x update_table.sh && \
-    cd ..
+    chmod +x cleanAD/update_table.sh
 RUN R CMD INSTALL ./cleanAD
 
 CMD ["/bin/bash"]
