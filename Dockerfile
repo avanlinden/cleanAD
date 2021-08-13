@@ -5,7 +5,7 @@ FROM sagebionetworks/synapser:latest
 
 RUN install2.r --error \
     config \
-	dplyr \
+    dplyr \
     glue \
     lubridate \
     purrr \
