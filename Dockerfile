@@ -17,7 +17,8 @@ RUN install2.r --error \
     optparse \
     testthat
 
-RUN apt-get install git-all -y
+RUN apt-get update --allow-releaseinfo-change && \
+    apt-get install git-all -y
 
 # Clone repo and install
 RUN git clone https://github.com/Sage-Bionetworks/cleanAD.git && \
