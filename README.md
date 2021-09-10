@@ -58,11 +58,11 @@ If you are on a Linux or Mac computer, you can use the included bash script to l
 
 ##### Docker
 
-A docker image has been created for running this script. You can use the docker by either building the image yourself with the included [Dockerfile](https://github.com/Sage-Bionetworks/cleanAD/blob/add-docker/Dockerfile) or pulling the [aryllen/cleanad](https://hub.docker.com/repository/docker/aryllen/cleanad/general) image from the cloud. If pulling the image from the cloud, be aware that the latest tag may get out of date; it is always recommended to check the [available tags](https://hub.docker.com/repository/docker/aryllen/cleanad/tags?page=1&ordering=last_updated) and specify the one that works best for you.
+A docker image has been created for running this script. You can use the docker by either building the image yourself with the included [Dockerfile](https://github.com/Sage-Bionetworks/cleanAD/blob/add-docker/Dockerfile) or pulling the [sagebionetworks/cleanad](https://hub.docker.com/repository/docker/sagebionetworks/cleanad/general) image from the cloud.
 
 ```bash
-docker pull aryllen/cleanad:latest
-docker run --rm --entrypoint ".cleanAD/update_table.sh" aryllen/cleanad:latest <config to use (e.g. default)> <Synapse personal access token or have local .synapseConfig>
+docker pull sagebionetworks/cleanad:latest
+docker run --rm --entrypoint ".cleanAD/update_table.sh" sagebionetworks/cleanad:latest <config to use (e.g. default)> <Synapse personal access token or have local .synapseConfig>
 ```
 
 To build the image locally, follow the steps below.
