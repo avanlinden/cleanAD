@@ -25,6 +25,7 @@ option_list <- list(
     "--config",
     type = "character",
     action = "store",
+    default = "default",
     help = "Synapse synIDs for top level directories to search for metadata as
             comma-separated list (e.g. --directories syn123,syn789). Folders
             within these directories should be organized as follows. The first
