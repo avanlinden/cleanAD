@@ -29,5 +29,3 @@ RUN apt-get update --allow-releaseinfo-change && \
 RUN git clone https://github.com/Sage-Bionetworks/cleanAD.git && \
     chmod +x cleanAD/update_table.sh
 RUN R CMD INSTALL ./cleanAD
-
-CMD ["/bin/bash"]
