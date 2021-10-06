@@ -3,7 +3,6 @@
 # Would be better if synapser docker images were tagged
 FROM rocker/rstudio:4.1.0
 
-RUN rm /etc/apt/apt.conf.d/default
 RUN apt-get update -y
 RUN apt-get install -y dpkg-dev zlib1g-dev libssl-dev libffi-dev
 RUN apt-get install -y curl libcurl4-openssl-dev
