@@ -1,7 +1,9 @@
 # NOTE: Build without caching to ensure latest version of git repo
 #       docker build --no-cache -t cleanad .
 # Would be better if synapser docker images were tagged
-FROM sagebionetworks/synapser:latest
+FROM rocker/rstudio:4.1.0
+
+RUN R -e "install.packages('synapser', repos=c('http://ran.synapse.org', 'http://cran.fhcrc.org'))"
 
 RUN install2.r --error \
     config \
