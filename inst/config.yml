@@ -1,0 +1,21 @@
+default:
+  directories:
+    - syn5550383
+    - syn5550382
+  consortia_dir: syn5550378
+  id_table: syn25723841
+  file_view: syn11346063
+  task_id: syn25931452
+  task_view: syn25582622
+  log_folder: syn26016552
+
+ad:
+  directories:
+    - syn5550383
+    - syn5550382
+  consortia_dir: syn5550378
+  id_table: syn21578908
+  file_view: syn11346063
+  task_id: syn25931452
+  task_view: syn25582622
+  log_folder: syn26016552
