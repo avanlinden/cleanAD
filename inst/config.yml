@@ -20,10 +20,10 @@ ad:
   task_view: syn25582622
   log_folder: syn26016552
 
-  test-ad:
-    directories:
-    - syn5550383
-    - syn5550382
+test-ad:
+  directories:
+   - syn5550383
+   - syn5550382
   consortia_dir: syn5550378
   id_table: syn26299149
   file_view: syn11346063
