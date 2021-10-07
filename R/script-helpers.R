@@ -38,6 +38,7 @@ get_config <- function(value, config) {
   config::get(
     value = value,
     config = config,
-    file = system.file("config.yml", package = "cleanAD")
+    #file = system.file("config.yml", package = "cleanAD")
+    file = "inst/config.yml"
   )
 }
