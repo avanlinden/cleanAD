@@ -62,7 +62,7 @@ A docker image has been created for running this script. You can use the docker 
 
 ```bash
 docker pull sagebionetworks/cleanad:latest
-docker run --rm --entrypoint ".cleanAD/update_table.sh" sagebionetworks/cleanad:latest <config to use (e.g. default)> <Synapse personal access token or have local .synapseConfig>
+docker run --rm --entrypoint "./cleanAD/update_table.sh" sagebionetworks/cleanad:latest <config to use (e.g. default)> <Synapse personal access token or have local .synapseConfig>
 ```
 
 To build the image locally, follow the steps below.
