@@ -58,7 +58,7 @@ If you are on a Linux or Mac computer, you can use the included bash script to l
 
 ##### Docker
 
-A docker image has been created for running this script. You can use the docker by either building the image yourself with the included [Dockerfile](https://github.com/Sage-Bionetworks/cleanAD/blob/add-docker/Dockerfile) or pulling the [sagebionetworks/cleanad](https://hub.docker.com/repository/docker/sagebionetworks/cleanad/general) image from the cloud.
+A docker image has been created for running this script. You can use the docker by either building the image yourself with the included [Dockerfile](https://github.com/Sage-Bionetworks/cleanAD/blob/add-docker/Dockerfile) or pulling the [sagebionetworks/cleanad](https://hub.docker.com/repository/docker/sagebionetworks/cleanad/general) image from the cloud. The DockerHub image is automatically built after pushes to the main branch in this repository, although there may be a lag of up to 6 hours before the image is updated.
 
 ```bash
 docker pull sagebionetworks/cleanad:latest
