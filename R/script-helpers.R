@@ -24,8 +24,8 @@ update_task_annotation <- function(task_id, annots, success, task_view = NA) {
 #' @export
 #' @param folder synID of parent folder for logs
 #' @param path log file path
-upload_log <- function(folder, path) {
-  syn_file <- File(path = path, parent = parent)
+upload_log_file <- function(folder, path) {
+  syn_file <- File(path = path, parent = folder)
   synStore(syn_file)
 }
 
@@ -38,6 +38,7 @@ get_config <- function(value, config) {
   config::get(
     value = value,
     config = config,
-    file = system.file("config.yml", package = "cleanAD")
+    #file = system.file("config.yml", package = "cleanAD")
+    file = "inst/config.yml"
   )
 }

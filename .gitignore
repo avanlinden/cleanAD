@@ -27,4 +27,7 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 .Rproj.user
-
+# Synapse config
+.synapseConfig
+# Log files
+LOGS/*
