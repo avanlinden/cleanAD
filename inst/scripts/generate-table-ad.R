@@ -39,9 +39,6 @@ option_list <- list(
 opt_parser <- optparse::OptionParser(option_list = option_list)
 opts <- optparse::parse_args(opt_parser)
 
-# testing opts
-opts$config <- "ad"
-
 ## Setup -----------------------------------------------------------------------
 
 ## Constants
@@ -222,7 +219,6 @@ all_files <- dplyr::left_join(
 all_files <- all_files[!grepl("dictionary|protocol", all_files$metadataType), ]
 
 ## Remove JSON array formatting from  columns with type STRING_LIST
-
 all_files[, "assay"] <- unlist(purrr::map(
   all_files$assay,
   ~ clean_json_string(., remove_spaces = FALSE)
