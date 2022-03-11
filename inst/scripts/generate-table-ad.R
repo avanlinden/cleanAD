@@ -40,7 +40,7 @@ opt_parser <- optparse::OptionParser(option_list = option_list)
 opts <- optparse::parse_args(opt_parser)
 
 # testing opts
-opts$config <- "test-ad"
+opts$config <- "ad"
 
 ## Setup -----------------------------------------------------------------------
 
@@ -80,6 +80,10 @@ tryCatch(
         "Log in error:\n  {e$message}"
       )
       error(logger, failure_message)
+      upload_log_file(
+        folder = get_config("log_folder", opts$config),
+        path = log_path
+      )
     }
     quit(status = 1)
   }
@@ -100,6 +104,10 @@ if (!is.na(get_config("task_id", opts$config))) {
         "Could not gather task annotations:\n  {e$message}"
       )
       error(logger, failure_message)
+      upload_log_file(
+        folder = get_config("log_folder", opts$config),
+        path = log_path
+      )
       quit(status = 1)
     }
   )
