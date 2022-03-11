@@ -39,6 +39,9 @@ option_list <- list(
 opt_parser <- optparse::OptionParser(option_list = option_list)
 opts <- optparse::parse_args(opt_parser)
 
+# testing opts
+opts$config <- "test-ad"
+
 ## Setup -----------------------------------------------------------------------
 
 ## Constants
@@ -122,7 +125,7 @@ all_files <- tryCatch(
           "There was a problem getting synIDs for metadata files:\n  {e$message}"
         )
         error(logger, failure_message)
-        upload_log(
+        upload_log_file(
           folder = get_config("log_folder", opts$config),
           path = log_path
         )
@@ -161,7 +164,7 @@ view_query <- tryCatch(
           "There was a problem getting the file view:\n  {e$message}"
         )
         error(logger, failure_message)
-        upload_log(
+        upload_log_file(
           folder = get_config("log_folder", opts$config),
           path = log_path
         )
@@ -191,7 +194,7 @@ if (length(missing_cols) > 0) {
         "The file view is missing these columns:\n  {missing}"
       )
       error(logger, failure_message)
-      upload_log(
+      upload_log_file(
         folder = get_config("log_folder", opts$config),
         path = log_path
       )
@@ -209,6 +212,13 @@ all_files <- dplyr::left_join(
 )
 ## Remove any with metadataType dictionary or protocol
 all_files <- all_files[!grepl("dictionary|protocol", all_files$metadataType), ]
+
+## Remove JSON array formatting from  columns with type STRING_LIST
+
+all_files[, "assay"] <- unlist(purrr::map(
+  all_files$assay,
+  ~ clean_json_string(., remove_spaces = FALSE)
+))
 
 ## Join metadata -----
 
@@ -229,7 +239,7 @@ all_meta_ids <- tryCatch({
           "There was a problem gathering metadata from the files:\n  {e$message}"
         )
         error(logger, failure_message)
-        upload_log(
+        upload_log_file(
           folder = get_config("log_folder", opts$config),
           path = log_path
         )
@@ -242,13 +252,21 @@ all_meta_ids <- tryCatch({
 ## Grab file annotations to add missing individuals/specimens -----
 all_annots <- view_query[, FILE_VIEW_COLUMNS_BIND]
 
-# Remove json from annotated study names
+# Remove json from annotated study names and assays
 all_annots[, "study"] <- unlist(purrr::map(
   all_annots$study,
   ~ clean_json_string(., remove_spaces = TRUE)
 ))
+
+all_annots[, "assay"] <- unlist(purrr::map(
+  all_annots$assay,
+  ~ clean_json_string(., remove_spaces = FALSE)
+))
+
 # Separate into multiple rows for IDs that have multiple study annotations
 all_annots <- tidyr::separate_rows(all_annots, study, sep = ",")
+# separate into multiple rows for IDS that have multiple assay annotations
+all_annots <- tidyr::separate_rows(all_annots, assay, sep = ",")
 # Remove any with consortia study name
 if (!is.na(get_config("consortia_dir", opts$config))) {
   all_annots <- tryCatch(
@@ -269,7 +287,7 @@ if (!is.na(get_config("consortia_dir", opts$config))) {
             "There was a problem gathering consortia study names:\n  {e$message}"
           )
           error(logger, failure_message)
-          upload_log(
+          upload_log_file(
             folder = get_config("log_folder", opts$config),
             path = log_path
           )
@@ -311,7 +329,7 @@ tryCatch(
           "There was a problem updating the specimen table:\n  {e$message}"
         )
         error(logger, failure_message)
-        upload_log(
+        upload_log_file(
           folder = get_config("log_folder", opts$config),
           path = log_path
         )
