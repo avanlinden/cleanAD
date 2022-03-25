@@ -1,7 +1,13 @@
 # NOTE: Build without caching to ensure latest version of git repo
 #       docker build --no-cache -t cleanad .
 # Would be better if synapser docker images were tagged
-FROM sagebionetworks/synapser:latest
+
+FROM rocker/rstudio:4.1.0
+
+RUN apt-get update -y
+RUN apt-get install -y dpkg-dev zlib1g-dev libssl-dev libffi-dev
+RUN apt-get install -y curl libcurl4-openssl-dev
+RUN R -e "install.packages('synapser', repos=c('http://ran.synapse.org', 'http://cran.fhcrc.org'))"
 
 RUN install2.r --error \
     config \
@@ -24,5 +30,3 @@ RUN apt-get update --allow-releaseinfo-change && \
 RUN git clone https://github.com/Sage-Bionetworks/cleanAD.git && \
     chmod +x cleanAD/update_table.sh
 RUN R CMD INSTALL ./cleanAD
-
-CMD ["/bin/bash"]
