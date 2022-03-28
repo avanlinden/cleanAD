@@ -39,6 +39,6 @@ get_config <- function(value, config) {
     value = value,
     config = config,
     file = system.file("config.yml", package = "cleanAD")
-    #file = here::here("inst/config.yml")
+    #file = "inst/config.yml"
   )
 }
