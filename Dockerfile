@@ -7,6 +7,7 @@ RUN install2.r --error \
     config \
     dplyr \
     glue \
+    here \
     lubridate \
     purrr \
     readr \
