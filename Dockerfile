@@ -21,7 +21,9 @@ RUN apt-get update --allow-releaseinfo-change && \
     apt-get install git-all -y
 
 # Clone repo and install
-RUN git clone https://github.com/Sage-Bionetworks/cleanAD.git && \
+# Github API call will return different results if head changes, invalidating the cache
+ADD https://api.github.com/repos/avanlinden/cleanAD/git/refs/heads/container-exec-debugging version.json
+RUN git clone -b container-exec-debugging https://github.com/Sage-Bionetworks/cleanAD.git && \
     chmod +x cleanAD/update_table.sh
 RUN R CMD INSTALL ./cleanAD
 
